@@ -4,9 +4,8 @@
 
     <!-- Barra de acciones -->
     <div class="barra-acciones">
-      <button @click="mostrarFormNodo = true" class="btn azul">➕ Añadir vértice</button>
+      <button @click="mostrarFormNodo = true" class="btn azul">➕ Añadir nodo</button>
       <button @click="mostrarMatriz" class="btn violeta"> Mostrar matriz</button>
-      <button @click="analizarGrupoMultiplicacion" class="btn verde">Es grupo?</button>
       <button @click="limpiarGrafo" class="btn rojo"> Eliminar todo</button>
     </div>
     
@@ -91,7 +90,7 @@
     <!-- Modal de matriz -->
     <transition name="fade-scale">
       <div v-if="ventanaMatriz" class="ventana-flotante matriz">
-        <h3>📊 Matriz de adyacencia</h3>
+        <h3>Matriz de adyacencia</h3>
         <table>
           <thead>
             <tr>
@@ -109,7 +108,8 @@
           </tbody>
         </table>
         <div class="acciones">
-          <button class="btn rojo" @click="ventanaMatriz = false">❌ Cerrar</button>
+            <button class="btn azul" @click="descargarMatrizJson">⬇️ Descargar JSON</button>
+            <button class="btn rojo" @click="ventanaMatriz = false">❌ Cerrar</button>
         </div>
       </div>
     </transition>
@@ -119,6 +119,25 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { Network, DataSet } from "vis-network/standalone";
+
+// Descargar matriz como JSON
+function descargarMatrizJson() {
+  const data = {
+    labels: labels.value,
+    nodosOrdenados: nodosOrdenados.value,
+    matriz: matriz.value
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'matriz_adyacencia.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 const contenedorRed = ref(null);
 let nodos = null;
@@ -163,80 +182,6 @@ const labels = ref({});
 const iIndex = ref({});
 const jIndex = ref({});
 
-
-
-
-/* ===== Grupo y Abeliano (multiplicación) ===== */
-const ventanaGrupo = ref(false);
-const resultadoGrupo = ref("");
-
-const analizarGrupoMultiplicacion = () => {
-  if (!matriz.value || matriz.value.length === 0) {
-    resultadoGrupo.value = "❌ No hay matriz calculada todavía.";
-    ventanaGrupo.value = true;
-    return;
-  }
-
-  const M = matriz.value;
-
-  // Función para calcular determinante
-  const determinant = (mat) => {
-    if (mat.length === 1) return mat[0][0];
-    if (mat.length === 2) return mat[0][0]*mat[1][1] - mat[0][1]*mat[1][0];
-    let det = 0;
-    for (let j = 0; j < mat.length; j++) {
-      const sub = mat.slice(1).map(row => row.filter((_, col) => col !== j));
-      det += ((j % 2 === 0 ? 1 : -1) * mat[0][j] * determinant(sub));
-    }
-    return det;
-  };
-
-  // Función para multiplicar matrices
-  const multiply = (A, B) => {
-    const n = A.length;
-    const C = Array.from({length: n}, () => Array(n).fill(0));
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        for (let k = 0; k < n; k++) {
-          C[i][j] += A[i][k] * B[k][j];
-        }
-      }
-    }
-    return C;
-  };
-
-  // Verificamos si la matriz es invertible
-  const det = determinant(M);
-  if (det === 0) {
-    resultadoGrupo.value = `
-      ❌ No es grupo bajo multiplicación.<br><br>
-      Razones:<br>
-      - La matriz no es invertible (determinante = 0).<br>
-      - Por lo tanto, no existe el inverso multiplicativo.<br>
-      - Sin inverso, no se cumple la propiedad necesaria para ser grupo.<br>
-      - Abelianidad no se puede aplicar si no es grupo.
-    `;
-    ventanaGrupo.value = true;
-    return;
-  }
-
-  // Verificamos abelianidad con un ejemplo simple (auto multiplicación)
-  const AB = multiply(M, M);
-  const BA = multiply(M, M);
-  const esAbeliano = JSON.stringify(AB) === JSON.stringify(BA);
-
-  resultadoGrupo.value = `
-    ✅ La matriz es invertible.<br>
-    ${esAbeliano ? "✅ Es abeliano (A*B = B*A)." : "❌ No es abeliano (A*B ≠ B*A)."}<br><br>
-    Razones:<br>
-    - Cerradura: el producto de matrices cuadradas es otra matriz.<br>
-    - Asociatividad: siempre se cumple.<br>
-    - Neutro: existe la matriz identidad (I).<br>
-    - Inverso: la matriz es invertible (determinante ≠ 0).<br>
-  `;
-
-  ventanaGrupo.value = true;
-};
 
 
 
@@ -396,6 +341,22 @@ const iniciarArista = () => {
 
 const confirmarArista = () => {
   if (edgeTemp && edgeTemp.from != null && edgeTemp.to != null) {
+    if (nuevoPeso.value < 0) {
+      alert("El peso no puede ser negativo.");
+      return;
+    }
+    if(nuevoPeso.value === "") {
+      alert("El peso no puede estar vacío.");
+      return;
+    }
+    if(nuevoPeso.value === 0) {
+      alert("El peso no puede ser cero.");
+      return;
+    }
+    if(typeof nuevoPeso.value !== "number") {
+      alert("El peso debe ser un número válido.");
+      return;
+    }
     const id = `e-${edgeTemp.from}-${edgeTemp.to}-${Date.now()}`;
     aristas.add({
       id,
@@ -506,6 +467,22 @@ const modificarPesoArista = () => {
     if (nuevoPeso !== null && nuevoPeso !== "") {
       aristas.update({ id: aristaSeleccionada.value, label: String(nuevoPeso) });
     }
+    if(nuevoPeso < 0) {
+      alert("El peso no puede ser negativo.");
+      aristas.update({ id: aristaSeleccionada.value, label: String(arista.label) });
+      return;
+    }
+    if(nuevoPeso === "") {
+      alert("El peso no puede estar vacío.");
+      aristas.update({ id: aristaSeleccionada.value, label: String(arista.label) });
+      return;
+    }
+    if(nuevoPeso === 0) {
+      alert("El peso no puede ser cero.");
+      aristas.update({ id: aristaSeleccionada.value, label: String(arista.label) });
+      return;
+    }
+    
     menuAristaVisible.value = false;
   }
 };
