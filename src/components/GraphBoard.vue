@@ -6,6 +6,7 @@
     <div class="barra-acciones">
       <button @click="mostrarFormNodo = true" class="btn azul">➕ Añadir vértice</button>
       <button @click="mostrarMatriz" class="btn violeta"> Mostrar matriz</button>
+      <button @click="analizarGrupo" class="btn verde">Es grupo?</button>
       <button @click="limpiarGrafo" class="btn rojo"> Eliminar todo</button>
     </div>
     
@@ -18,6 +19,15 @@
   <button class="btn rojo" @click="confirmarEliminarGrafo">Sí</button>
   <button class="btn ghost" @click="confirmarEliminar = false">No</button>
 </div>
+<transition name="fade-scale">
+  <div v-if="ventanaGrupo" class="ventana-flotante">
+    <h3> Análisis de Grupo</h3>
+    <p v-html="resultadoGrupo"></p>
+    <div class="acciones">
+      <button class="btn rojo" @click="ventanaGrupo = false">❌ Cerrar</button>
+    </div>
+  </div>
+</transition>
 
     <!-- Formulario inline -->
     <transition name="fade">
@@ -134,6 +144,46 @@ const nodosOrdenados = ref([]);
 const labels = ref({});
 const iIndex = ref({});
 const jIndex = ref({});
+
+/* ===== Grupo ===== */
+const ventanaGrupo = ref(false);
+const resultadoGrupo = ref("");
+
+const analizarGrupo = () => {
+  if (!matriz.value || matriz.value.length === 0) {
+    resultadoGrupo.value = "❌ No hay matriz calculada todavía.";
+  } else {
+
+    // Función para calcular determinante de matriz nxn
+    const determinant = (M) => {
+      if (M.length === 1) return M[0][0];
+      if (M.length === 2) return M[0][0]*M[1][1] - M[0][1]*M[1][0];
+      let det = 0;
+      for (let j = 0; j < M.length; j++) {
+        const sub = M.slice(1).map(row => row.filter((_, col) => col !== j));
+        det += ((j % 2 === 0 ? 1 : -1) * M[0][j] * determinant(sub));
+      }
+      return det;
+    };
+
+    // Revisar si la matriz es invertible
+    const det = determinant(matriz.value);
+
+    if (det !== 0) {
+      resultadoGrupo.value = "✅ Sí es grupo bajo multiplicación (la matriz es invertible).";
+    } else {
+      resultadoGrupo.value = `
+        ❌ No es grupo bajo multiplicación.<br><br>
+        Razones:<br>
+        - La matriz no es invertible (determinante = 0).<br>
+        - Por lo tanto, no existe el inverso multiplicativo.<br>
+        - Sin inverso, no se cumple la propiedad necesaria para ser grupo.
+      `;
+    }
+  }
+  ventanaGrupo.value = true;
+};
+
 
 onMounted(() => {
   nodos = new DataSet([

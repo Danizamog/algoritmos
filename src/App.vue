@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <h1>Mi Aplicación de Grafos</h1>
+    <h1>Algoritmos</h1>
     <GraphBoard />
   </div>
 </template>
