@@ -50,9 +50,21 @@
         :style="{ top: menuY + 'px', left: menuX + 'px' }"
         class="menu-contextual"
       >
-        <button class="btn azul" @click="editarNodo">✏️ Cambiar nombre</button>
-        <button class="btn violeta" @click="iniciarArista">➕ Crear arista</button>
-        <button class="btn rojo" @click="eliminarNodo">🗑️ Eliminar</button>
+        <button class="btn azul" @click="editarNodo"> Cambiar nombre</button>
+        <button class="btn violeta" @click="iniciarArista"> Crear arista</button>
+        <button class="btn rojo" @click="eliminarNodo"> Eliminar</button>
+      </div>
+    </transition>
+
+    <!-- Menú contextual de arista -->
+    <transition name="fade-scale">
+      <div
+        v-if="menuAristaVisible"
+        :style="{ top: menuAristaY + 'px', left: menuAristaX + 'px' }"
+        class="menu-contextual"
+      >
+        <button class="btn azul" @click="modificarPesoArista"> Cambiar Peso</button>
+        <button class="btn rojo" @click="eliminarArista"> Eliminar</button>
       </div>
     </transition>
 
@@ -118,6 +130,12 @@ const menuVisible = ref(false);
 const menuX = ref(0);
 const menuY = ref(0);
 let nodoSeleccionado = null;
+
+/* ===== UI: Menú de arista ===== */
+const menuAristaVisible = ref(false);
+const aristaSeleccionada = ref(null);
+const menuAristaX = ref(0);
+const menuAristaY = ref(0);
 
 /* ===== UI: Añadir nodo ===== */
 const mostrarFormNodo = ref(false);
@@ -250,6 +268,11 @@ onMounted(() => {
       menuX.value = params.pointer?.DOM?.x ?? 0;
       menuY.value = params.pointer?.DOM?.y ?? 0;
       menuVisible.value = true;
+    } else if (params.edges?.length > 0) {
+      // Mostrar menú de arista
+      mostrarMenuArista(params.edges[0], params.pointer.DOM.x, params.pointer.DOM.y);
+      menuVisible.value = false;
+      nodoSeleccionado = null;
     } else {
       // Si hizo click en arista o espacio vacío -> cerrar menú
       menuVisible.value = false;
@@ -344,9 +367,6 @@ const iniciarArista = () => {
     }
   };
 
-  network.on("hoverNode", hoverHandler);
-  network.on("blurNode", blurHandler);
-
   clickOnceHandler = (params) => {
     if (!esperandoDestino) return;
     if (params.nodes?.length > 0) {
@@ -369,6 +389,8 @@ const iniciarArista = () => {
     }
   };
 
+  network.on("hoverNode", hoverHandler);
+  network.on("blurNode", blurHandler);
   network.on("click", clickOnceHandler);
 };
 
@@ -461,6 +483,31 @@ const mostrarMatriz = () => {
 
   matriz.value = M;
   ventanaMatriz.value = true;
+};
+
+const mostrarMenuArista = (edgeId, x, y) => {
+  aristaSeleccionada.value = edgeId;
+  menuAristaX.value = x;
+  menuAristaY.value = y;
+  menuAristaVisible.value = true;
+};
+
+const eliminarArista = () => {
+  if (aristaSeleccionada.value) {
+    aristas.remove(aristaSeleccionada.value);
+    menuAristaVisible.value = false;
+  }
+};
+
+const modificarPesoArista = () => {
+  if (aristaSeleccionada.value) {
+    const arista = aristas.get(aristaSeleccionada.value);
+    const nuevoPeso = window.prompt("Nuevo peso:", arista.label);
+    if (nuevoPeso !== null && nuevoPeso !== "") {
+      aristas.update({ id: aristaSeleccionada.value, label: String(nuevoPeso) });
+    }
+    menuAristaVisible.value = false;
+  }
 };
 </script>
 
