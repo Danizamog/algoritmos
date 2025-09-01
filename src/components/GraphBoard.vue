@@ -7,26 +7,22 @@
       <button @click="mostrarFormNodo = true" class="btn azul">➕ Añadir nodo</button>
       <button @click="mostrarMatriz" class="btn violeta"> Mostrar matriz</button>
       <button @click="limpiarGrafo" class="btn rojo"> Eliminar todo</button>
+      <!-- Botón importar -->
+      <label for="importar" class="btn naranja">📂 Importar archivo</label>
+      <input id="importar" type="file" @change="importarArchivo" hidden />
+
     </div>
-    
-    <div class="creador" >
+
+    <div class="creador">
       <small>Hecho por Daniel Zamorano</small>
     </div>
-<!-- eliminar -->
-<div v-if="confirmarEliminar" class="mensaje-confirmacion">
-  <p><strong>¿Seguro que quieres eliminar todo el grafo?</strong></p>
-  <button class="btn rojo" @click="confirmarEliminarGrafo">Sí</button>
-  <button class="btn ghost" @click="confirmarEliminar = false">No</button>
-</div>
-<transition name="fade-scale">
-  <div v-if="ventanaGrupo" class="ventana-flotante">
-    <h3> Análisis de Grupo</h3>
-    <p v-html="resultadoGrupo"></p>
-    <div class="acciones">
-      <button class="btn rojo" @click="ventanaGrupo = false">❌ Cerrar</button>
+
+    <!-- Confirmar eliminar -->
+    <div v-if="confirmarEliminar" class="mensaje-confirmacion">
+      <p><strong>¿Seguro que quieres eliminar todo el grafo?</strong></p>
+      <button class="btn rojo" @click="confirmarEliminarGrafo">Sí</button>
+      <button class="btn ghost" @click="confirmarEliminar = false">No</button>
     </div>
-  </div>
-</transition>
 
     <!-- Formulario inline -->
     <transition name="fade">
@@ -42,27 +38,27 @@
     <!-- Pizarra -->
     <div class="contenedor-grafo" ref="contenedorRed"></div>
 
-    <!-- Menú contextual -->
+    <!-- Menú contextual de nodos -->
     <transition name="fade-scale">
       <div
         v-if="menuVisible"
         :style="{ top: menuY + 'px', left: menuX + 'px' }"
         class="menu-contextual"
       >
-        <button class="btn azul" @click="editarNodo"> Cambiar nombre</button>
+        <button class="btn azul" @click="abrirModalEditarNodo"> Cambiar nombre</button>
         <button class="btn violeta" @click="iniciarArista"> Crear arista</button>
         <button class="btn rojo" @click="eliminarNodo"> Eliminar</button>
       </div>
     </transition>
 
-    <!-- Menú contextual de arista -->
+    <!-- Menú contextual de aristas -->
     <transition name="fade-scale">
       <div
         v-if="menuAristaVisible"
         :style="{ top: menuAristaY + 'px', left: menuAristaX + 'px' }"
         class="menu-contextual"
       >
-        <button class="btn azul" @click="modificarPesoArista"> Cambiar Peso</button>
+        <button class="btn azul" @click="abrirModalEditarArista"> Cambiar Peso</button>
         <button class="btn rojo" @click="eliminarArista"> Eliminar</button>
       </div>
     </transition>
@@ -73,7 +69,7 @@
         <h3>➕ Nueva arista</h3>
         <label>
           Peso:
-          <input type="number" v-model.number="nuevoPeso" min="0" step="1" />
+          <input type="number" v-model.number="nuevoPeso" min="1" step="1" />
         </label>
         <label class="check">
           <input type="checkbox" v-model="esDirigida" />
@@ -86,6 +82,32 @@
         </div>
       </div>
     </transition>
+    <!-- Modal editar nodo -->
+<transition name="fade-scale">
+  <div v-if="ventanaEditarNodo" class="ventana-flotante">
+    <h3>✏️ Editar nodo</h3>
+    <input v-model="nuevoNombreNodoEditar" placeholder="Nuevo nombre" />
+    <div class="acciones">
+      <button class="btn verde" @click="confirmarEditarNodo">Guardar</button>
+      <button class="btn rojo" @click="ventanaEditarNodo = false">Cancelar</button>
+    </div>
+  </div>
+</transition>
+
+<!-- Modal editar arista -->
+<transition name="fade-scale">
+  <div v-if="ventanaEditarArista" class="ventana-flotante">
+    <h3>✏️ Editar arista</h3>
+    <label>
+      Peso:
+      <input type="number" v-model.number="nuevoPesoEditar" min="1" step="1" />
+    </label>
+    <div class="acciones">
+      <button class="btn verde" @click="confirmarEditarArista">Guardar</button>
+      <button class="btn rojo" @click="ventanaEditarArista = false">Cancelar</button>
+    </div>
+  </div>
+</transition>
 
     <!-- Modal de matriz -->
     <transition name="fade-scale">
@@ -108,8 +130,9 @@
           </tbody>
         </table>
         <div class="acciones">
-            <button class="btn azul" @click="descargarMatrizJson">⬇️ Descargar JSON</button>
-            <button class="btn rojo" @click="ventanaMatriz = false">❌ Cerrar</button>
+          <button class="btn azul" @click="descargarMatrizJson">⬇️ JSON</button>
+          <button class="btn verde" @click="descargarMatrizCsv">⬇️ CSV</button>
+          <button class="btn rojo" @click="ventanaMatriz = false">❌ Cerrar</button>
         </div>
       </div>
     </transition>
@@ -120,37 +143,111 @@
 import { ref, onMounted, onBeforeUnmount } from "vue";
 import { Network, DataSet } from "vis-network/standalone";
 
-// Descargar matriz como JSON
+/* ===== Helpers generales ===== */
+let edgeCounter = 1;
+
+function validarPeso(peso) {
+  if (peso === null || peso === undefined || peso === "") return "El peso no puede estar vacío.";
+  if (isNaN(peso)) return "El peso debe ser un número.";
+  if (peso <= 0) return "El peso debe ser mayor a 0.";
+  return null;
+}
+
+/* ===== Descargar matriz ===== */
 function descargarMatrizJson() {
   const data = {
     labels: labels.value,
     nodosOrdenados: nodosOrdenados.value,
-    matriz: matriz.value
+    matriz: matriz.value,
   };
   const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
+  const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
-  a.download = 'matriz_adyacencia.json';
+  a.download = "matriz_adyacencia.json";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
+function descargarMatrizCsv() {
+  let csv = "," + nodosOrdenados.value.map((id) => labels.value[id]).join(",") + "\n";
+  matriz.value.forEach((row, i) => {
+    csv += labels.value[nodosOrdenados.value[i]] + "," + row.join(",") + "\n";
+  });
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "matriz_adyacencia.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ===== Importar matriz ===== */
+function importarArchivo(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    if (file.name.endsWith(".json")) {
+      try {
+        const data = JSON.parse(e.target.result);
+        cargarMatriz(data.labels, data.nodosOrdenados, data.matriz);
+      } catch (err) {
+        alert("Error al leer JSON");
+      }
+    } else if (file.name.endsWith(".csv")) {
+      const text = e.target.result;
+      const rows = text.trim().split("\n").map(r => r.split(","));
+      const labelsCsv = {};
+      const nodosOrd = rows[0].slice(1);
+      nodosOrd.forEach((label, i) => { labelsCsv[i+1] = label; });
+      const matrizCsv = rows.slice(1).map(r => r.slice(1).map(Number));
+      cargarMatriz(labelsCsv, Object.keys(labelsCsv).map(Number), matrizCsv);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function cargarMatriz(dicLabels, lista, M) {
+  nodos.clear();
+  aristas.clear();
+  lista.forEach((id) => {
+    nodos.add({ id, label: dicLabels[id] });
+  });
+  for (let i = 0; i < lista.length; i++) {
+    for (let j = 0; j < lista.length; j++) {
+      if (M[i][j] > 0) {
+        aristas.add({
+          id: `e-${edgeCounter++}`,
+          from: lista[i],
+          to: lista[j],
+          label: String(M[i][j]),
+          arrows: i !== j ? "to" : ""
+        });
+      }
+    }
+  }
+}
+
+/* ===== Datos y refs ===== */
 const contenedorRed = ref(null);
 let nodos = null;
 let aristas = null;
 let network = null;
 
-/* ===== UI: Menú contextual ===== */
+/* ===== UI: Menús ===== */
 const menuVisible = ref(false);
 const menuX = ref(0);
 const menuY = ref(0);
 let nodoSeleccionado = null;
 
-/* ===== UI: Menú de arista ===== */
 const menuAristaVisible = ref(false);
 const aristaSeleccionada = ref(null);
 const menuAristaX = ref(0);
@@ -165,14 +262,15 @@ const ventanaArista = ref(false);
 const nuevoPeso = ref(1);
 const esDirigida = ref(false);
 let edgeTemp = null;
-let esperandoDestino = false;
 let origenArista = null;
-let tempEdgeId = null;
 
-// handlers
-let hoverHandler = null;
-let blurHandler = null;
-let clickOnceHandler = null;
+/* ===== Editar nodo ===== */
+const ventanaEditarNodo = ref(false);
+const nuevoNombreNodoEditar = ref("");
+
+/* ===== Editar arista ===== */
+const ventanaEditarArista = ref(false);
+const nuevoPesoEditar = ref(1);
 
 /* ===== Matriz ===== */
 const ventanaMatriz = ref(false);
@@ -182,31 +280,25 @@ const labels = ref({});
 const iIndex = ref({});
 const jIndex = ref({});
 
+/* ===== Eliminar todo ===== */
+const confirmarEliminar = ref(false);
 
 
 
-
+/* ===== Inicialización ===== */
 onMounted(() => {
   nodos = new DataSet([
     { id: 1, label: "Nodo 1" },
-    { id: 2, label: "Nodo 2" }
+    { id: 2, label: "Nodo 2" },
   ]);
 
-  aristas = new DataSet([
-    { id: "e-1-2", from: 1, to: 2, label: "1", arrows: "to" }
-  ]);
+  aristas = new DataSet([{ id: "e-1-2", from: 1, to: 2, label: "1", arrows: "to" }]);
 
   const datos = { nodes: nodos, edges: aristas };
-
-  const opciones = {
-    interaction: { hover: true },
-    manipulation: { enabled: false },
-    physics: { stabilization: true }
-  };
+  const opciones = { interaction: { hover: true }, manipulation: { enabled: false } };
 
   network = new Network(contenedorRed.value, datos, opciones);
 
-  // Click: abrir menú contextual SOLO en nodos, no en aristas
   network.on("click", (params) => {
     if (params.nodes?.length > 0) {
       nodoSeleccionado = params.nodes[0];
@@ -218,248 +310,212 @@ onMounted(() => {
     } else if (params.edges?.length > 0) {
       mostrarMenuArista(params.edges[0]);
       menuVisible.value = false;
-      nodoSeleccionado = null;
     } else {
       menuVisible.value = false;
       menuAristaVisible.value = false;
       nodoSeleccionado = null;
     }
   });
-});
 
-function handleGlobalClick(e) {
-  // Si el menú está abierto y el click no fue dentro del menú, ciérralo
-  const menus = document.querySelectorAll('.menu-contextual');
-  let clickedInsideMenu = false;
-  menus.forEach(menu => {
-    if (menu.contains(e.target)) clickedInsideMenu = true;
-  });
-  if (!clickedInsideMenu) {
-    menuVisible.value = false;
-    menuAristaVisible.value = false;
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('mousedown', handleGlobalClick);
+  window.addEventListener("mousedown", handleGlobalClick);
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener('mousedown', handleGlobalClick);
+  window.removeEventListener("mousedown", handleGlobalClick);
 });
 
-/* ===== Helpers ===== */
-const nextId = () => {
-  const ids = nodos.getIds();
-  return ids.length ? Math.max(...ids) + 1 : 1;
-};
-
+/* ===== Helpers de posiciones ===== */
 function getNodeScreenPosition(nodeId) {
-  if (!network) return { x: 0, y: 0 };
   const pos = network.getPositions([nodeId])[nodeId];
   const canvasPos = network.canvasToDOM(pos);
-  // Ajuste para centrar el menú al lado derecho del nodo
   return { x: canvasPos.x + 30, y: canvasPos.y - 10 };
 }
 
 function getEdgeScreenPosition(edgeId) {
-  if (!network) return { x: 0, y: 0 };
   const edge = aristas.get(edgeId);
-  if (!edge) return { x: 0, y: 0 };
   const fromPos = network.getPositions([edge.from])[edge.from];
   const toPos = network.getPositions([edge.to])[edge.to];
-  // Punto medio de la arista
   const x = (fromPos.x + toPos.x) / 2;
   const y = (fromPos.y + toPos.y) / 2;
   const canvasPos = network.canvasToDOM({ x, y });
   return { x: canvasPos.x + 20, y: canvasPos.y - 10 };
 }
 
+/* ===== Menú contextual fuera click ===== */
+function handleGlobalClick(e) {
+  const menus = document.querySelectorAll(".menu-contextual");
+  let inside = false;
+  menus.forEach((menu) => {
+    if (menu.contains(e.target)) inside = true;
+  });
+  if (!inside) {
+    menuVisible.value = false;
+    menuAristaVisible.value = false;
+  }
+}
+
 /* ===== Añadir nodo ===== */
-const agregarNodoConfirmar = () => {
+function agregarNodoConfirmar() {
   const nombre = (nuevoNombreNodo.value || "").trim();
-  const id = nextId();
+  const id = Math.max(0, ...nodos.getIds()) + 1;
   nodos.add({ id, label: nombre || `Nodo ${id}` });
   nuevoNombreNodo.value = "";
   mostrarFormNodo.value = false;
-};
-
-const cancelarAgregarNodo = () => {
+}
+function cancelarAgregarNodo() {
   nuevoNombreNodo.value = "";
   mostrarFormNodo.value = false;
-};
+}
 
-/* ===== Menú contextual ===== */
-const editarNodo = () => {
+/* ===== Editar nodo ===== */
+function abrirModalEditarNodo() {
   if (!nodoSeleccionado) return;
-  const actual = nodos.get(nodoSeleccionado)?.label ?? "";
-  const nuevo = window.prompt("Nuevo nombre:", actual);
-  if (nuevo && nuevo.trim()) {
-    nodos.update({ id: nodoSeleccionado, label: nuevo.trim() });
-  }
+  nuevoNombreNodoEditar.value = nodos.get(nodoSeleccionado)?.label ?? "";
+  ventanaEditarNodo.value = true;
   menuVisible.value = false;
-};
+}
+function confirmarEditarNodo() {
+  if (nodoSeleccionado && nuevoNombreNodoEditar.value.trim()) {
+    nodos.update({ id: nodoSeleccionado, label: nuevoNombreNodoEditar.value.trim() });
+  }
+  ventanaEditarNodo.value = false;
+}
 
-const eliminarNodo = () => {
+/* ===== Eliminar nodo ===== */
+function eliminarNodo() {
   if (!nodoSeleccionado) return;
   nodos.remove(nodoSeleccionado);
   aristas.remove(
-    aristas.get().filter((a) => a.from === nodoSeleccionado || a.to === nodoSeleccionado).map(e=>e.id)
+    aristas.get().filter((a) => a.from === nodoSeleccionado || a.to === nodoSeleccionado).map((e) => e.id)
   );
   menuVisible.value = false;
-};
+}
 
 /* ===== Crear arista ===== */
-const iniciarArista = () => {
-  if (!nodoSeleccionado) return;
-  cancelarListenersArista();
+let aristaFantasma = null;
 
+function iniciarArista() {
+  if (!nodoSeleccionado) return;
   origenArista = nodoSeleccionado;
-  esperandoDestino = true;
   menuVisible.value = false;
 
-  network.selectNodes([origenArista], false);
-
-  hoverHandler = (params) => {
-    const hovered = params.node;
-    if (!esperandoDestino) return;
-
-    // permitir mismo nodo como destino (loop)
-    if (tempEdgeId && aristas.get(tempEdgeId)) {
-      aristas.remove(tempEdgeId);
-      tempEdgeId = null;
-    }
-
-    tempEdgeId = `temp-${origenArista}-${hovered}-${Date.now()}`;
-    aristas.add({
-      id: tempEdgeId,
-      from: origenArista,
-      to: hovered,
-      dashes: true,
-      label: "",
-      color: { color: "#9ca3af" },
-      physics: false,
-      length: 150
-    });
+  // Creamos una arista temporal
+  aristaFantasma = {
+    id: "temp",
+    from: origenArista,
+    to: origenArista, // empieza en sí mismo
+    dashes: true,
+    color: { color: "#9ca3af" }, // gris
+    arrows: ""
   };
+  aristas.add(aristaFantasma);
 
-  blurHandler = (params) => {
-    const hovered = params.node;
-    const idGuessPrefix = `temp-${origenArista}-${hovered}`;
-    const found = aristas.get().find(e => e.id && String(e.id).startsWith(idGuessPrefix));
-    if (found) {
-      try { aristas.remove(found.id); } catch(e){
-        console.error("Error al eliminar arista temporal:", e);
-      }
-      if (tempEdgeId === found.id) tempEdgeId = null;
-    }
-  };
+  // Seguimos el mouse
+  network.on("mousemove", actualizarFantasma);
 
-  clickOnceHandler = (params) => {
-    if (!esperandoDestino) return;
+  // Esperamos el clic en destino
+  network.once("click", (params) => {
+    network.off("mousemove", actualizarFantasma);
+    aristas.remove("temp");
+
     if (params.nodes?.length > 0) {
       const destino = params.nodes[0];
       edgeTemp = { from: origenArista, to: destino };
-
-      if (tempEdgeId && aristas.get(tempEdgeId)) {
-        try { aristas.remove(tempEdgeId); } catch(e){
-          console.error("Error al eliminar arista temporal:", e);
-        }
-        tempEdgeId = null;
-      }
-
       ventanaArista.value = true;
-      esperandoDestino = false;
-      network.off("hoverNode", hoverHandler);
-      network.off("blurNode", blurHandler);
-    } else {
-      cancelarArista();
     }
-  };
 
-  network.on("hoverNode", hoverHandler);
-  network.on("blurNode", blurHandler);
-  network.on("click", clickOnceHandler);
-};
+    aristaFantasma = null;
+  });
+}
 
-const confirmarArista = () => {
-  if (edgeTemp && edgeTemp.from != null && edgeTemp.to != null) {
-    if (nuevoPeso.value < 0) {
-      alert("El peso no puede ser negativo.");
-      return;
-    }
-    if(nuevoPeso.value === "") {
-      alert("El peso no puede estar vacío.");
-      return;
-    }
-    if(nuevoPeso.value === 0) {
-      alert("El peso no puede ser cero.");
-      return;
-    }
-    if(typeof nuevoPeso.value !== "number") {
-      alert("El peso debe ser un número válido.");
-      return;
-    }
-    const id = `e-${edgeTemp.from}-${edgeTemp.to}-${Date.now()}`;
-    aristas.add({
-      id,
-      from: edgeTemp.from,
-      to: edgeTemp.to,
-      label: String(nuevoPeso.value ?? 1),
-      arrows: esDirigida.value ? "to" : "",
-      dashes: false
-    });
+function actualizarFantasma(params) {
+  if (!aristaFantasma) return;
+  const pos = network.DOMtoCanvas({ x: params.pointer.DOM.x, y: params.pointer.DOM.y });
+
+  // Actualizamos la arista para seguir el cursor
+  aristas.update({
+    id: "temp",
+    from: origenArista,
+    to: { x: pos.x, y: pos.y }, // <-- aquí usamos pos
+    physics: false,
+    smooth: { enabled: false },
+    dashes: true,
+    color: { color: "#9ca3af" }
+  });
+
+  network.redraw();
+}
+
+function confirmarArista() {
+  const error = validarPeso(nuevoPeso.value);
+  if (error) {
+    alert(error);
+    return;
   }
+  const id = `e-${edgeCounter++}`;
+  aristas.add({
+    id,
+    from: edgeTemp.from,
+    to: edgeTemp.to,
+    label: String(nuevoPeso.value),
+    arrows: esDirigida.value ? "to" : "",
+  });
   cancelarArista();
-};
+}
 
-const cancelarArista = () => {
+function cancelarArista() {
   ventanaArista.value = false;
   edgeTemp = null;
   nuevoPeso.value = 1;
   esDirigida.value = false;
-  esperandoDestino = false;
   origenArista = null;
-
-  if (tempEdgeId && aristas.get(tempEdgeId)) {
-    try { aristas.remove(tempEdgeId); } catch (e){
-      console.error("Error al eliminar arista temporal:", e);
-    }
-    tempEdgeId = null;
-  }
-  cancelarListenersArista();
-  network.unselectAll();
-};
-
-function cancelarListenersArista() {
-  try {
-    if (hoverHandler) network.off("hoverNode", hoverHandler);
-    if (blurHandler) network.off("blurNode", blurHandler);
-    if (clickOnceHandler) network.off("click", clickOnceHandler);
-  } catch (e) {
-    console.error("Error al cancelar listeners de arista:", e);
-  }
-  hoverHandler = null;
-  blurHandler = null;
-  clickOnceHandler = null;
 }
 
-// ===== Eliminar todo el grafo =====
-const confirmarEliminar = ref(false);
+/* ===== Editar arista ===== */
+function abrirModalEditarArista() {
+  if (!aristaSeleccionada.value) return;
+  const arista = aristas.get(aristaSeleccionada.value);
+  nuevoPesoEditar.value = Number(arista.label) || 1;
+  ventanaEditarArista.value = true;
+  menuAristaVisible.value = false;
+}
+function confirmarEditarArista() {
+  const error = validarPeso(nuevoPesoEditar.value);
+  if (error) {
+    alert(error);
+    return;
+  }
+  aristas.update({ id: aristaSeleccionada.value, label: String(nuevoPesoEditar.value) });
+  ventanaEditarArista.value = false;
+}
 
-const limpiarGrafo = () => {
+/* ===== Eliminar arista ===== */
+function mostrarMenuArista(edgeId) {
+  aristaSeleccionada.value = edgeId;
+  const { x, y } = getEdgeScreenPosition(edgeId);
+  menuAristaX.value = x;
+  menuAristaY.value = y;
+  menuAristaVisible.value = true;
+}
+function eliminarArista() {
+  if (aristaSeleccionada.value) {
+    aristas.remove(aristaSeleccionada.value);
+    menuAristaVisible.value = false;
+  }
+}
+
+/* ===== Eliminar todo ===== */
+function limpiarGrafo() {
   confirmarEliminar.value = true;
-};
-
-const confirmarEliminarGrafo = () => {
+}
+function confirmarEliminarGrafo() {
   nodos.clear();
   aristas.clear();
-  cancelarArista();
   confirmarEliminar.value = false;
-};
+}
 
 /* ===== Matriz ===== */
-const mostrarMatriz = () => {
+function mostrarMatriz() {
   const lista = nodos.get().map((n) => n.id).sort((a, b) => a - b);
   const n = lista.length;
   const M = Array.from({ length: n }, () => Array(n).fill(0));
@@ -467,7 +523,6 @@ const mostrarMatriz = () => {
   nodos.get().forEach((nd) => (dicLabels[nd.id] = nd.label));
 
   aristas.get().forEach((e) => {
-    if (String(e.id).startsWith("temp-")) return;
     const i = lista.indexOf(e.from);
     const j = lista.indexOf(e.to);
     const w = Number(e.label) || 1;
@@ -487,49 +542,7 @@ const mostrarMatriz = () => {
 
   matriz.value = M;
   ventanaMatriz.value = true;
-};
-
-const mostrarMenuArista = (edgeId) => {
-  aristaSeleccionada.value = edgeId;
-  const { x, y } = getEdgeScreenPosition(edgeId);
-  menuAristaX.value = x;
-  menuAristaY.value = y;
-  menuAristaVisible.value = true;
-};
-
-const eliminarArista = () => {
-  if (aristaSeleccionada.value) {
-    aristas.remove(aristaSeleccionada.value);
-    menuAristaVisible.value = false;
-  }
-};
-
-const modificarPesoArista = () => {
-  if (aristaSeleccionada.value) {
-    const arista = aristas.get(aristaSeleccionada.value);
-    const nuevoPeso = window.prompt("Nuevo peso:", arista.label);
-    if (nuevoPeso !== null && nuevoPeso !== "") {
-      aristas.update({ id: aristaSeleccionada.value, label: String(nuevoPeso) });
-    }
-    if(nuevoPeso < 0) {
-      alert("El peso no puede ser negativo.");
-      aristas.update({ id: aristaSeleccionada.value, label: String(arista.label) });
-      return;
-    }
-    if(nuevoPeso === "") {
-      alert("El peso no puede estar vacío.");
-      aristas.update({ id: aristaSeleccionada.value, label: String(arista.label) });
-      return;
-    }
-    if(nuevoPeso === 0) {
-      alert("El peso no puede ser cero.");
-      aristas.update({ id: aristaSeleccionada.value, label: String(arista.label) });
-      return;
-    }
-    
-    menuAristaVisible.value = false;
-  }
-};
+}
 </script>
 
 <style scoped>
@@ -671,6 +684,7 @@ const modificarPesoArista = () => {
   margin: 0 5px;
 }
 
+.naranja { background: #f59e0b; color: #fff; }
 
 
 /* Animaciones */
