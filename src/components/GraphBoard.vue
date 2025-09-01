@@ -117,7 +117,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onBeforeUnmount } from "vue";
 import { Network, DataSet } from "vis-network/standalone";
 
 // Descargar matriz como JSON
@@ -210,20 +210,42 @@ onMounted(() => {
   network.on("click", (params) => {
     if (params.nodes?.length > 0) {
       nodoSeleccionado = params.nodes[0];
-      menuX.value = params.pointer?.DOM?.x ?? 0;
-      menuY.value = params.pointer?.DOM?.y ?? 0;
+      const { x, y } = getNodeScreenPosition(nodoSeleccionado);
+      menuX.value = x;
+      menuY.value = y;
       menuVisible.value = true;
+      menuAristaVisible.value = false;
     } else if (params.edges?.length > 0) {
-      // Mostrar menú de arista
-      mostrarMenuArista(params.edges[0], params.pointer.DOM.x, params.pointer.DOM.y);
+      mostrarMenuArista(params.edges[0]);
       menuVisible.value = false;
       nodoSeleccionado = null;
     } else {
-      // Si hizo click en arista o espacio vacío -> cerrar menú
       menuVisible.value = false;
+      menuAristaVisible.value = false;
       nodoSeleccionado = null;
     }
   });
+});
+
+function handleGlobalClick(e) {
+  // Si el menú está abierto y el click no fue dentro del menú, ciérralo
+  const menus = document.querySelectorAll('.menu-contextual');
+  let clickedInsideMenu = false;
+  menus.forEach(menu => {
+    if (menu.contains(e.target)) clickedInsideMenu = true;
+  });
+  if (!clickedInsideMenu) {
+    menuVisible.value = false;
+    menuAristaVisible.value = false;
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('mousedown', handleGlobalClick);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('mousedown', handleGlobalClick);
 });
 
 /* ===== Helpers ===== */
@@ -231,6 +253,27 @@ const nextId = () => {
   const ids = nodos.getIds();
   return ids.length ? Math.max(...ids) + 1 : 1;
 };
+
+function getNodeScreenPosition(nodeId) {
+  if (!network) return { x: 0, y: 0 };
+  const pos = network.getPositions([nodeId])[nodeId];
+  const canvasPos = network.canvasToDOM(pos);
+  // Ajuste para centrar el menú al lado derecho del nodo
+  return { x: canvasPos.x + 30, y: canvasPos.y - 10 };
+}
+
+function getEdgeScreenPosition(edgeId) {
+  if (!network) return { x: 0, y: 0 };
+  const edge = aristas.get(edgeId);
+  if (!edge) return { x: 0, y: 0 };
+  const fromPos = network.getPositions([edge.from])[edge.from];
+  const toPos = network.getPositions([edge.to])[edge.to];
+  // Punto medio de la arista
+  const x = (fromPos.x + toPos.x) / 2;
+  const y = (fromPos.y + toPos.y) / 2;
+  const canvasPos = network.canvasToDOM({ x, y });
+  return { x: canvasPos.x + 20, y: canvasPos.y - 10 };
+}
 
 /* ===== Añadir nodo ===== */
 const agregarNodoConfirmar = () => {
@@ -446,8 +489,9 @@ const mostrarMatriz = () => {
   ventanaMatriz.value = true;
 };
 
-const mostrarMenuArista = (edgeId, x, y) => {
+const mostrarMenuArista = (edgeId) => {
   aristaSeleccionada.value = edgeId;
+  const { x, y } = getEdgeScreenPosition(edgeId);
   menuAristaX.value = x;
   menuAristaY.value = y;
   menuAristaVisible.value = true;
