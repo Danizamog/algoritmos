@@ -8,9 +8,9 @@
       <button @click="mostrarMatriz" class="btn violeta"> Mostrar matriz</button>
       <button @click="limpiarGrafo" class="btn rojo"> Eliminar todo</button>
       <!-- Botón importar -->
-      <label for="importar" class="btn naranja">📂 Importar archivo</label>
+      <label for="importar" class="btn naranja">Importar archivo</label>
       <input id="importar" type="file" @change="importarArchivo" hidden />
-
+      <button @click="abrirAyuda" class="btn gris">Ayuda</button>
     </div>
 
     <div class="creador">
@@ -143,6 +143,11 @@
 import { ref, onMounted, onBeforeUnmount } from "vue";
 import { Network, DataSet } from "vis-network/standalone";
 
+function abrirAyuda() {
+  // Forma 1: usando import.meta.url (Vite)
+  const url = new URL("@/assets/ayuda.pdf", import.meta.url).href;
+  window.open(url, "_blank");
+}
 /* ===== Helpers generales ===== */
 let edgeCounter = 1;
 
@@ -392,58 +397,22 @@ function eliminarNodo() {
 }
 
 /* ===== Crear arista ===== */
-let aristaFantasma = null;
-
 function iniciarArista() {
   if (!nodoSeleccionado) return;
   origenArista = nodoSeleccionado;
   menuVisible.value = false;
 
-  // Creamos una arista temporal
-  aristaFantasma = {
-    id: "temp",
-    from: origenArista,
-    to: origenArista, // empieza en sí mismo
-    dashes: true,
-    color: { color: "#9ca3af" }, // gris
-    arrows: ""
-  };
-  aristas.add(aristaFantasma);
-
-  // Seguimos el mouse
-  network.on("mousemove", actualizarFantasma);
-
-  // Esperamos el clic en destino
+  // Esperar click en destino
   network.once("click", (params) => {
-    network.off("mousemove", actualizarFantasma);
-    aristas.remove("temp");
-
     if (params.nodes?.length > 0) {
       const destino = params.nodes[0];
+      // Ahora sí permitimos destino === origen
       edgeTemp = { from: origenArista, to: destino };
       ventanaArista.value = true;
     }
 
-    aristaFantasma = null;
+    origenArista = null;
   });
-}
-
-function actualizarFantasma(params) {
-  if (!aristaFantasma) return;
-  const pos = network.DOMtoCanvas({ x: params.pointer.DOM.x, y: params.pointer.DOM.y });
-
-  // Actualizamos la arista para seguir el cursor
-  aristas.update({
-    id: "temp",
-    from: origenArista,
-    to: { x: pos.x, y: pos.y }, // <-- aquí usamos pos
-    physics: false,
-    smooth: { enabled: false },
-    dashes: true,
-    color: { color: "#9ca3af" }
-  });
-
-  network.redraw();
 }
 
 function confirmarArista() {
@@ -699,6 +668,10 @@ function mostrarMatriz() {
 }
 .fade-scale-enter-from, .fade-scale-leave-to {
   opacity: 0; transform: scale(0.9);
+}
+.gris {
+  background: #598d71; /* gris Tailwind */
+  color: #fff;
 }
 </style>
 
