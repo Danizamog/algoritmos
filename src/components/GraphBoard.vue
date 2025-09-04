@@ -1,30 +1,33 @@
 <template>
   <div class="grafo-container">
-    <h2 class="titulo"> Pizarra de Grafos </h2>
+    <h2 class="titulo">Pizarra de Grafos</h2>
 
     <!-- Barra de acciones -->
     <div class="barra-acciones">
       <button @click="mostrarFormNodo = true" class="btn azul">➕ Añadir nodo</button>
-      <button @click="mostrarMatriz" class="btn violeta"> Mostrar matriz</button>
-      <button @click="limpiarGrafo" class="btn rojo"> Eliminar todo</button>
-      <!-- Botón importar -->
+      <button @click="mostrarMatriz" class="btn violeta">Mostrar matriz</button>
       <label for="importar" class="btn naranja">Importar archivo</label>
       <input id="importar" type="file" @change="importarArchivo" hidden />
       <button @click="abrirAyuda" class="btn gris">Ayuda</button>
+      <button @click="limpiarGrafo" class="btn rojo">Eliminar todo</button>
+      <!-- Botones de asignación -->
+      <button @click="resolverAsignacion('max')" class="btn verde">Asignación máxima</button>
+      <button @click="resolverAsignacion('min')" class="btn naranja">Asignación mínima</button>
     </div>
 
+    <!-- Autor -->
     <div class="creador">
       <small>Hecho por Daniel Zamorano</small>
     </div>
 
-    <!-- Confirmar eliminar -->
+    <!-- Confirmación de eliminar todo -->
     <div v-if="confirmarEliminar" class="mensaje-confirmacion">
       <p><strong>¿Seguro que quieres eliminar todo el grafo?</strong></p>
       <button class="btn rojo" @click="confirmarEliminarGrafo">Sí</button>
       <button class="btn ghost" @click="confirmarEliminar = false">No</button>
     </div>
 
-    <!-- Formulario inline -->
+    <!-- Formulario para añadir nodo -->
     <transition name="fade">
       <div v-if="mostrarFormNodo" class="panel-inline">
         <input v-model="nuevoNombreNodo" placeholder="Nombre del nodo" />
@@ -35,7 +38,7 @@
       </div>
     </transition>
 
-    <!-- Pizarra -->
+    <!-- Pizarra de grafo -->
     <div class="contenedor-grafo" ref="contenedorRed"></div>
 
     <!-- Menú contextual de nodos -->
@@ -45,9 +48,9 @@
         :style="{ top: menuY + 'px', left: menuX + 'px' }"
         class="menu-contextual"
       >
-        <button class="btn azul" @click="abrirModalEditarNodo"> Cambiar nombre</button>
-        <button class="btn violeta" @click="iniciarArista"> Crear arista</button>
-        <button class="btn rojo" @click="eliminarNodo"> Eliminar</button>
+        <button class="btn azul" @click="abrirModalEditarNodo">Cambiar nombre</button>
+        <button class="btn violeta" @click="iniciarArista">Crear arista</button>
+        <button class="btn rojo" @click="eliminarNodo">Eliminar</button>
       </div>
     </transition>
 
@@ -58,19 +61,21 @@
         :style="{ top: menuAristaY + 'px', left: menuAristaX + 'px' }"
         class="menu-contextual"
       >
-        <button class="btn azul" @click="abrirModalEditarArista"> Cambiar Peso</button>
-        <button class="btn rojo" @click="eliminarArista"> Eliminar</button>
+        <button class="btn azul" @click="abrirModalEditarArista">Cambiar peso</button>
+        <button class="btn rojo" @click="eliminarArista">Eliminar</button>
       </div>
     </transition>
 
-    <!-- Modal de nueva arista -->
+    <!-- Modal: Nueva arista -->
     <transition name="fade-scale">
       <div v-if="ventanaArista" class="ventana-flotante">
         <h3>➕ Nueva arista</h3>
+
         <label>
           Peso:
           <input type="number" v-model.number="nuevoPeso" min="1" step="1" />
         </label>
+
         <label class="check">
           <input type="checkbox" v-model="esDirigida" />
           Dirigida
@@ -82,42 +87,46 @@
         </div>
       </div>
     </transition>
-    <!-- Modal editar nodo -->
-<transition name="fade-scale">
-  <div v-if="ventanaEditarNodo" class="ventana-flotante">
-    <h3>✏️ Editar nodo</h3>
-    <input v-model="nuevoNombreNodoEditar" placeholder="Nuevo nombre" />
-    <div class="acciones">
-      <button class="btn verde" @click="confirmarEditarNodo">Guardar</button>
-      <button class="btn rojo" @click="ventanaEditarNodo = false">Cancelar</button>
-    </div>
-  </div>
-</transition>
 
-<!-- Modal editar arista -->
-<transition name="fade-scale">
-  <div v-if="ventanaEditarArista" class="ventana-flotante">
-    <h3>✏️ Editar arista</h3>
-    <label>
-      Peso:
-      <input type="number" v-model.number="nuevoPesoEditar" min="1" step="1" />
-    </label>
-    <div class="acciones">
-      <button class="btn verde" @click="confirmarEditarArista">Guardar</button>
-      <button class="btn rojo" @click="ventanaEditarArista = false">Cancelar</button>
-    </div>
-  </div>
-</transition>
+    <!-- Modal: Editar nodo -->
+    <transition name="fade-scale">
+      <div v-if="ventanaEditarNodo" class="ventana-flotante">
+        <h3>✏️ Editar nodo</h3>
+        <input v-model="nuevoNombreNodoEditar" placeholder="Nuevo nombre" />
+        <div class="acciones">
+          <button class="btn verde" @click="confirmarEditarNodo">Guardar</button>
+          <button class="btn rojo" @click="ventanaEditarNodo = false">Cancelar</button>
+        </div>
+      </div>
+    </transition>
 
-    <!-- Modal de matriz -->
+    <!-- Modal: Editar arista -->
+    <transition name="fade-scale">
+      <div v-if="ventanaEditarArista" class="ventana-flotante">
+        <h3>✏️ Editar arista</h3>
+        <label>
+          Peso:
+          <input type="number" v-model.number="nuevoPesoEditar" min="1" step="1" />
+        </label>
+        <div class="acciones">
+          <button class="btn verde" @click="confirmarEditarArista">Guardar</button>
+          <button class="btn rojo" @click="ventanaEditarArista = false">Cancelar</button>
+        </div>
+      </div>
+    </transition>
+
+    <!-- Modal: Matriz de adyacencia -->
     <transition name="fade-scale">
       <div v-if="ventanaMatriz" class="ventana-flotante matriz">
         <h3>Matriz de adyacencia</h3>
+
         <table>
           <thead>
             <tr>
               <th></th>
-              <th v-for="n in nodosOrdenados" :key="'col-' + n">{{ labels[n] }}</th>
+              <th v-for="n in nodosOrdenados" :key="'col-' + n">
+                {{ labels[n] }}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -129,6 +138,7 @@
             </tr>
           </tbody>
         </table>
+
         <div class="acciones">
           <button class="btn azul" @click="descargarMatrizJson">⬇️ JSON</button>
           <button class="btn verde" @click="descargarMatrizCsv">⬇️ CSV</button>
@@ -136,118 +146,52 @@
         </div>
       </div>
     </transition>
+
+    <!-- Modal: Resultado de asignación -->
+    <transition name="fade-scale">
+      <div v-if="ventanaAsignacion" class="ventana-flotante matriz">
+        <h3>Resultado de asignación {{ tipoAsignacion === 'max' ? 'máxima' : 'mínima' }}</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Nodo</th>
+              <th>Asignado a</th>
+              <th>Peso</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(asig, idx) in resultadoAsignacion" :key="idx">
+              <td>{{ labels[nodosOrdenados[idx]] }}</td>
+              <td>{{ labels[nodosOrdenados[asig.j]] }}</td>
+              <td>{{ asig.valor }}</td>
+            </tr>
+            <tr>
+              <th colspan="2">Total</th>
+              <th>{{ totalAsignacion }}</th>
+            </tr>
+          </tbody>
+        </table>
+        <div class="acciones">
+          <button class="btn rojo" @click="ventanaAsignacion = false">Cerrar</button>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
+/* ===== Imports ===== */
 import { ref, onMounted, onBeforeUnmount } from "vue";
 import { Network, DataSet } from "vis-network/standalone";
 
-function abrirAyuda() {
-  // Forma 1: usando import.meta.url (Vite)
-  const url = new URL("@/assets/ayuda.pdf", import.meta.url).href;
-  window.open(url, "_blank");
-}
-/* ===== Helpers generales ===== */
+// ===== Variables globales =====
 let edgeCounter = 1;
-
-function validarPeso(peso) {
-  if (peso === null || peso === undefined || peso === "") return "El peso no puede estar vacío.";
-  if (isNaN(peso)) return "El peso debe ser un número.";
-  if (peso <= 0) return "El peso debe ser mayor a 0.";
-  return null;
-}
-
-/* ===== Descargar matriz ===== */
-function descargarMatrizJson() {
-  const data = {
-    labels: labels.value,
-    nodosOrdenados: nodosOrdenados.value,
-    matriz: matriz.value,
-  };
-  const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "matriz_adyacencia.json";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function descargarMatrizCsv() {
-  let csv = "," + nodosOrdenados.value.map((id) => labels.value[id]).join(",") + "\n";
-  matriz.value.forEach((row, i) => {
-    csv += labels.value[nodosOrdenados.value[i]] + "," + row.join(",") + "\n";
-  });
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "matriz_adyacencia.csv";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-/* ===== Importar matriz ===== */
-function importarArchivo(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    if (file.name.endsWith(".json")) {
-      try {
-        const data = JSON.parse(e.target.result);
-        cargarMatriz(data.labels, data.nodosOrdenados, data.matriz);
-      } catch (err) {
-        alert("Error al leer JSON");
-      }
-    } else if (file.name.endsWith(".csv")) {
-      const text = e.target.result;
-      const rows = text.trim().split("\n").map(r => r.split(","));
-      const labelsCsv = {};
-      const nodosOrd = rows[0].slice(1);
-      nodosOrd.forEach((label, i) => { labelsCsv[i+1] = label; });
-      const matrizCsv = rows.slice(1).map(r => r.slice(1).map(Number));
-      cargarMatriz(labelsCsv, Object.keys(labelsCsv).map(Number), matrizCsv);
-    }
-  };
-  reader.readAsText(file);
-}
-
-function cargarMatriz(dicLabels, lista, M) {
-  nodos.clear();
-  aristas.clear();
-  lista.forEach((id) => {
-    nodos.add({ id, label: dicLabels[id] });
-  });
-  for (let i = 0; i < lista.length; i++) {
-    for (let j = 0; j < lista.length; j++) {
-      if (M[i][j] > 0) {
-        aristas.add({
-          id: `e-${edgeCounter++}`,
-          from: lista[i],
-          to: lista[j],
-          label: String(M[i][j]),
-          arrows: i !== j ? "to" : ""
-        });
-      }
-    }
-  }
-}
-
-/* ===== Datos y refs ===== */
 const contenedorRed = ref(null);
 let nodos = null;
 let aristas = null;
 let network = null;
 
-/* ===== UI: Menús ===== */
+/* ===== UI: Estados ===== */
 const menuVisible = ref(false);
 const menuX = ref(0);
 const menuY = ref(0);
@@ -258,26 +202,21 @@ const aristaSeleccionada = ref(null);
 const menuAristaX = ref(0);
 const menuAristaY = ref(0);
 
-/* ===== UI: Añadir nodo ===== */
 const mostrarFormNodo = ref(false);
 const nuevoNombreNodo = ref("");
 
-/* ===== Crear arista ===== */
 const ventanaArista = ref(false);
 const nuevoPeso = ref(1);
 const esDirigida = ref(false);
 let edgeTemp = null;
 let origenArista = null;
 
-/* ===== Editar nodo ===== */
 const ventanaEditarNodo = ref(false);
 const nuevoNombreNodoEditar = ref("");
 
-/* ===== Editar arista ===== */
 const ventanaEditarArista = ref(false);
 const nuevoPesoEditar = ref(1);
 
-/* ===== Matriz ===== */
 const ventanaMatriz = ref(false);
 const matriz = ref([]);
 const nodosOrdenados = ref([]);
@@ -285,10 +224,25 @@ const labels = ref({});
 const iIndex = ref({});
 const jIndex = ref({});
 
-/* ===== Eliminar todo ===== */
 const confirmarEliminar = ref(false);
 
+const ventanaAsignacion = ref(false);
+const resultadoAsignacion = ref([]);
+const tipoAsignacion = ref("max");
+const totalAsignacion = ref(0);
 
+/* ===== Helpers generales ===== */
+function abrirAyuda() {
+  const url = new URL("@/assets/ayuda.pdf", import.meta.url).href;
+  window.open(url, "_blank");
+}
+
+function validarPeso(peso) {
+  if (peso === null || peso === undefined || peso === "") return "El peso no puede estar vacío.";
+  if (isNaN(peso)) return "El peso debe ser un número.";
+  if (peso <= 0) return "El peso debe ser mayor a 0.";
+  return null;
+}
 
 /* ===== Inicialización ===== */
 onMounted(() => {
@@ -359,7 +313,7 @@ function handleGlobalClick(e) {
   }
 }
 
-/* ===== Añadir nodo ===== */
+/* ===== Nodos ===== */
 function agregarNodoConfirmar() {
   const nombre = (nuevoNombreNodo.value || "").trim();
   const id = Math.max(0, ...nodos.getIds()) + 1;
@@ -371,8 +325,6 @@ function cancelarAgregarNodo() {
   nuevoNombreNodo.value = "";
   mostrarFormNodo.value = false;
 }
-
-/* ===== Editar nodo ===== */
 function abrirModalEditarNodo() {
   if (!nodoSeleccionado) return;
   nuevoNombreNodoEditar.value = nodos.get(nodoSeleccionado)?.label ?? "";
@@ -385,8 +337,6 @@ function confirmarEditarNodo() {
   }
   ventanaEditarNodo.value = false;
 }
-
-/* ===== Eliminar nodo ===== */
 function eliminarNodo() {
   if (!nodoSeleccionado) return;
   nodos.remove(nodoSeleccionado);
@@ -396,25 +346,21 @@ function eliminarNodo() {
   menuVisible.value = false;
 }
 
-/* ===== Crear arista ===== */
+/* ===== Aristas ===== */
 function iniciarArista() {
   if (!nodoSeleccionado) return;
   origenArista = nodoSeleccionado;
   menuVisible.value = false;
 
-  // Esperar click en destino
   network.once("click", (params) => {
     if (params.nodes?.length > 0) {
       const destino = params.nodes[0];
-      // Ahora sí permitimos destino === origen
       edgeTemp = { from: origenArista, to: destino };
       ventanaArista.value = true;
     }
-
     origenArista = null;
   });
 }
-
 function confirmarArista() {
   const error = validarPeso(nuevoPeso.value);
   if (error) {
@@ -431,7 +377,6 @@ function confirmarArista() {
   });
   cancelarArista();
 }
-
 function cancelarArista() {
   ventanaArista.value = false;
   edgeTemp = null;
@@ -439,8 +384,6 @@ function cancelarArista() {
   esDirigida.value = false;
   origenArista = null;
 }
-
-/* ===== Editar arista ===== */
 function abrirModalEditarArista() {
   if (!aristaSeleccionada.value) return;
   const arista = aristas.get(aristaSeleccionada.value);
@@ -457,8 +400,6 @@ function confirmarEditarArista() {
   aristas.update({ id: aristaSeleccionada.value, label: String(nuevoPesoEditar.value) });
   ventanaEditarArista.value = false;
 }
-
-/* ===== Eliminar arista ===== */
 function mostrarMenuArista(edgeId) {
   aristaSeleccionada.value = edgeId;
   const { x, y } = getEdgeScreenPosition(edgeId);
@@ -512,9 +453,160 @@ function mostrarMatriz() {
   matriz.value = M;
   ventanaMatriz.value = true;
 }
+function descargarMatrizJson() {
+  const data = { labels: labels.value, nodosOrdenados: nodosOrdenados.value, matriz: matriz.value };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "matriz_adyacencia.json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function descargarMatrizCsv() {
+  let csv = "," + nodosOrdenados.value.map((id) => labels.value[id]).join(",") + "\n";
+  matriz.value.forEach((row, i) => {
+    csv += labels.value[nodosOrdenados.value[i]] + "," + row.join(",") + "\n";
+  });
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "matriz_adyacencia.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function importarArchivo(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    if (file.name.endsWith(".json")) {
+      try {
+        const data = JSON.parse(e.target.result);
+        cargarMatriz(data.labels, data.nodosOrdenados, data.matriz);
+      } catch {
+        alert("Error al leer JSON");
+      }
+    } else if (file.name.endsWith(".csv")) {
+      const text = e.target.result;
+      const rows = text.trim().split("\n").map(r => r.split(","));
+      const labelsCsv = {};
+      const nodosOrd = rows[0].slice(1);
+      nodosOrd.forEach((label, i) => { labelsCsv[i+1] = label; });
+      const matrizCsv = rows.slice(1).map(r => r.slice(1).map(Number));
+      cargarMatriz(labelsCsv, Object.keys(labelsCsv).map(Number), matrizCsv);
+    }
+  };
+  reader.readAsText(file);
+}
+function cargarMatriz(dicLabels, lista, M) {
+  nodos.clear();
+  aristas.clear();
+  lista.forEach((id) => {
+    nodos.add({ id, label: dicLabels[id] });
+  });
+  for (let i = 0; i < lista.length; i++) {
+    for (let j = 0; j < lista.length; j++) {
+      if (M[i][j] > 0) {
+        aristas.add({
+          id: `e-${edgeCounter++}`,
+          from: lista[i],
+          to: lista[j],
+          label: String(M[i][j]),
+          arrows: i !== j ? "to" : ""
+        });
+      }
+    }
+  }
+}
+
+/* ===== Asignación ===== */
+function hungarianAlgorithm(matrix, tipo) {
+  // Si es máxima, convierte a problema de minimización
+  let cost = matrix.map(row => row.slice());
+  if (tipo === "max") {
+    const maxVal = Math.max(...cost.flat());
+    cost = cost.map(row => row.map(val => maxVal - val));
+  }
+  const n = cost.length;
+  const u = Array(n + 1).fill(0);
+  const v = Array(n + 1).fill(0);
+  const p = Array(n + 1).fill(0);
+  const way = Array(n + 1).fill(0);
+
+  for (let i = 1; i <= n; i++) {
+    p[0] = i;
+    let minv = Array(n + 1).fill(Infinity);
+    let used = Array(n + 1).fill(false);
+    let j0 = 0;
+    do {
+      used[j0] = true;
+      let i0 = p[j0];
+      let delta = Infinity, j1 = 0;
+      for (let j = 1; j <= n; j++) {
+        if (!used[j]) {
+          let cur = cost[i0 - 1][j - 1] - u[i0] - v[j];
+          if (cur < minv[j]) {
+            minv[j] = cur;
+            way[j] = j0;
+          }
+          if (minv[j] < delta) {
+            delta = minv[j];
+            j1 = j;
+          }
+        }
+      }
+      for (let j = 0; j <= n; j++) {
+        if (used[j]) {
+          u[p[j]] += delta;
+          v[j] -= delta;
+        } else {
+          minv[j] -= delta;
+        }
+      }
+      j0 = j1;
+    } while (p[j0] !== 0);
+    do {
+      let j1 = way[j0];
+      p[j0] = p[j1];
+      j0 = j1;
+    } while (j0);
+  }
+  // Construir resultado
+  const result = [];
+  let total = 0;
+  for (let j = 1; j <= n; j++) {
+    const i = p[j];
+    result.push({ i: i - 1, j: j - 1, valor: matrix[i - 1][j - 1] });
+    total += matrix[i - 1][j - 1];
+  }
+  return { result, total };
+}
+
+function resolverAsignacion(tipo) {
+  mostrarMatriz();
+  setTimeout(() => {
+    const M = matriz.value;
+    const n = M.length;
+    if (n === 0) return;
+    const { result, total } = hungarianAlgorithm(M, tipo);
+    resultadoAsignacion.value = result;
+    tipoAsignacion.value = tipo;
+    totalAsignacion.value = total;
+    ventanaAsignacion.value = true;
+  }, 100);
+}
 </script>
 
+
 <style scoped>
+/* ===== Contenedor principal ===== */
 .grafo-container {
   max-width: 1100px;
   margin: auto;
@@ -530,7 +622,7 @@ function mostrarMatriz() {
   -webkit-text-fill-color: transparent;
 }
 
-/* Botones */
+/* ===== Botones ===== */
 .btn {
   padding: 8px 16px;
   border-radius: 12px;
@@ -543,17 +635,19 @@ function mostrarMatriz() {
 .btn:hover { transform: scale(1.05); }
 .btn:active { transform: scale(0.95); }
 
-.azul { background: #3b82f6; color: #fff; }
+.azul    { background: #3b82f6; color: #fff; }
 .violeta { background: #8b5cf6; color: #fff; }
-.rojo { background: #ef4444; color: #fff; }
-.verde { background: #22c55e; color: #fff; }
+.rojo    { background: #ef4444; color: #fff; }
+.verde   { background: #22c55e; color: #fff; }
+.naranja { background: #f59e0b; color: #fff; }
+.gris    { background: #598d71; color: #fff; }
 .ghost {
   background: transparent;
   color: #374151;
   border: 1px solid #d1d5db;
 }
 
-/* Barra de acciones */
+/* ===== Barra de acciones ===== */
 .barra-acciones {
   display: flex;
   gap: 10px;
@@ -561,21 +655,30 @@ function mostrarMatriz() {
   margin-bottom: 10px;
 }
 
-/* Panel inline */
+/* ===== Panel inline ===== */
 .panel-inline {
-  display: flex; gap: 10px; align-items: center; justify-content: center;
-  background: #f9fafb; padding: 12px; border: 1px solid #e5e7eb;
-  border-radius: 14px; margin-bottom: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  background: #f9fafb;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  margin-bottom: 12px;
   box-shadow: 0 3px 10px rgba(0,0,0,.05);
 }
 .panel-inline input {
-  min-width: 220px; padding: 8px 12px;
-  border-radius: 10px; border: 1px solid #cbd5e1;
+  min-width: 220px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
 }
 
-/* Lienzo */
+/* ===== Lienzo del grafo ===== */
 .contenedor-grafo {
-  width: 100%; height: 600px;
+  width: 100%;
+  height: 600px;
   border: 2px solid #6366f1;
   border-radius: 18px;
   backdrop-filter: blur(12px);
@@ -584,22 +687,26 @@ function mostrarMatriz() {
   margin-bottom: 15px;
 }
 
-/* Menú contextual */
+/* ===== Menú contextual ===== */
 .menu-contextual {
   position: absolute;
   background: #fff;
   border: 1px solid #e5e7eb;
   padding: 8px;
   border-radius: 12px;
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   z-index: 1000;
   box-shadow: 0 12px 30px rgba(0,0,0,.15);
 }
 
-/* Ventanas flotantes */
+/* ===== Ventanas flotantes ===== */
 .ventana-flotante {
   position: fixed;
-  top: 25%; left: 50%; transform: translateX(-50%);
+  top: 25%;
+  left: 50%;
+  transform: translateX(-50%);
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 16px;
@@ -612,10 +719,18 @@ function mostrarMatriz() {
   margin-bottom: 10px;
   text-align: center;
 }
-.check { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; }
-.ventana-flotante .acciones { margin-top: 15px; justify-content: center; }
+.ventana-flotante .acciones {
+  margin-top: 15px;
+  justify-content: center;
+}
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+}
 
-/* Tabla de matriz */
+/* ===== Tabla de matriz ===== */
 .matriz table {
   margin: auto;
   border-collapse: collapse;
@@ -635,7 +750,7 @@ function mostrarMatriz() {
   background: #f9fafb;
 }
 
-/* eliminar */
+/* ===== Confirmación eliminar ===== */
 .mensaje-confirmacion {
   padding: 15px;
   border: 1px solid #ccc;
@@ -653,25 +768,22 @@ function mostrarMatriz() {
   margin: 0 5px;
 }
 
-.naranja { background: #f59e0b; color: #fff; }
-
-
-/* Animaciones */
+/* ===== Animaciones ===== */
 @keyframes pop {
   from { transform: translateX(-50%) scale(0.8); opacity: 0; }
-  to { transform: translateX(-50%) scale(1); opacity: 1; }
+  to   { transform: translateX(-50%) scale(1); opacity: 1; }
 }
-.fade-enter-active, .fade-leave-active { transition: opacity .2s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+.fade-enter-active, .fade-leave-active {
+  transition: opacity .2s;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
 .fade-scale-enter-active, .fade-scale-leave-active {
   transition: all .25s ease;
 }
 .fade-scale-enter-from, .fade-scale-leave-to {
-  opacity: 0; transform: scale(0.9);
-}
-.gris {
-  background: #598d71; /* gris Tailwind */
-  color: #fff;
+  opacity: 0;
+  transform: scale(0.9);
 }
 </style>
-
