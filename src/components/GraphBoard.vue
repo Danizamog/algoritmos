@@ -10,10 +10,7 @@
       <input id="importar" type="file" @change="importarArchivo" hidden />
       <button @click="abrirAyuda" class="btn gris">Ayuda</button>
       <button @click="limpiarGrafo" class="btn rojo">Eliminar todo</button>
-      <!-- Botones de asignación -->
-      <button @click="resolverAsignacion('max')" class="btn verde">Asignación máxima</button>
-      <button @click="resolverAsignacion('min')" class="btn naranja">Asignación mínima</button>
-    </div>
+      </div>
 
     <!-- Autor -->
     <div class="creador">
@@ -484,6 +481,7 @@ function descargarMatrizCsv() {
 function importarArchivo(event) {
   const file = event.target.files[0];
   if (!file) return;
+
   const reader = new FileReader();
   reader.onload = (e) => {
     if (file.name.endsWith(".json")) {
@@ -502,9 +500,11 @@ function importarArchivo(event) {
       const matrizCsv = rows.slice(1).map(r => r.slice(1).map(Number));
       cargarMatriz(labelsCsv, Object.keys(labelsCsv).map(Number), matrizCsv);
     }
+    event.target.value = "";
   };
   reader.readAsText(file);
 }
+
 function cargarMatriz(dicLabels, lista, M) {
   nodos.clear();
   aristas.clear();
@@ -527,7 +527,7 @@ function cargarMatriz(dicLabels, lista, M) {
 }
 
 /* ===== Asignación ===== */
-function hungarianAlgorithm(matrix, tipo) {
+/*function hungarianAlgorithm(matrix, tipo) {
   // Si es máxima, convierte a problema de minimización
   let cost = matrix.map(row => row.slice());
   if (tipo === "max") {
@@ -601,7 +601,7 @@ function resolverAsignacion(tipo) {
     totalAsignacion.value = total;
     ventanaAsignacion.value = true;
   }, 100);
-}
+} */
 </script>
 
 
