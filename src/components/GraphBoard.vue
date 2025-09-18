@@ -10,7 +10,9 @@
       <input id="importar" type="file" @change="importarArchivo" hidden />
       <button @click="abrirAyuda" class="btn gris">Ayuda</button>
       <button @click="limpiarGrafo" class="btn rojo">Eliminar todo</button>
-      </div>
+      <!-- <button @click="resolverAsignacion('max')" class="btn verde">Asignación máxima</button> -->
+      <!-- <button @click="resolverAsignacion('min')" class="btn naranja">Asignación mínima</button> -->
+    </div>
 
     <!-- Autor -->
     <div class="creador">
@@ -173,6 +175,11 @@
         </div>
       </div>
     </transition>
+
+    <!-- Mensaje temporal al crear arista -->
+    <div v-if="creandoArista" class="mensaje-arista">
+      <span>Selecciona el nodo destino para la arista...</span>
+    </div>
   </div>
 </template>
 
@@ -227,6 +234,8 @@ const ventanaAsignacion = ref(false);
 const resultadoAsignacion = ref([]);
 const tipoAsignacion = ref("max");
 const totalAsignacion = ref(0);
+
+const creandoArista = ref(false); // Nuevo estado para indicar creación de arista
 
 /* ===== Helpers generales ===== */
 function abrirAyuda() {
@@ -348,8 +357,10 @@ function iniciarArista() {
   if (!nodoSeleccionado) return;
   origenArista = nodoSeleccionado;
   menuVisible.value = false;
+  creandoArista.value = true; // Mostrar mensaje
 
   network.once("click", (params) => {
+    creandoArista.value = false; // Ocultar mensaje
     if (params.nodes?.length > 0) {
       const destino = params.nodes[0];
       edgeTemp = { from: origenArista, to: destino };
@@ -380,6 +391,7 @@ function cancelarArista() {
   nuevoPeso.value = 1;
   esDirigida.value = false;
   origenArista = null;
+  creandoArista.value = false; // Ocultar mensaje si se cancela
 }
 function abrirModalEditarArista() {
   if (!aristaSeleccionada.value) return;
@@ -595,6 +607,10 @@ function resolverAsignacion(tipo) {
     const M = matriz.value;
     const n = M.length;
     if (n === 0) return;
+    if (M.some(row => row.length !== n)) {
+      alert("La matriz debe ser cuadrada para la asignación.");
+      return;
+    }
     const { result, total } = hungarianAlgorithm(M, tipo);
     resultadoAsignacion.value = result;
     tipoAsignacion.value = tipo;
@@ -623,7 +639,10 @@ function resolverAsignacion(tipo) {
 }
 
 /* ===== Botones ===== */
-.btn {
+.btn,
+.btn[type="button"],
+label.btn {
+  display: inline-block;
   padding: 8px 16px;
   border-radius: 12px;
   border: none;
@@ -631,7 +650,13 @@ function resolverAsignacion(tipo) {
   font-weight: 600;
   transition: all 0.2s ease-in-out;
   box-shadow: 0 4px 12px rgba(0,0,0,.1);
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+  text-align: center;
+  text-decoration: none;
 }
+
 .btn:hover { transform: scale(1.05); }
 .btn:active { transform: scale(0.95); }
 
@@ -784,6 +809,20 @@ function resolverAsignacion(tipo) {
 }
 .fade-scale-enter-from, .fade-scale-leave-to {
   opacity: 0;
-  transform: scale(0.9);
+  transform: sc
+  ale(0.9);
+}
+.mensaje-arista {
+  margin: 10px auto 0 auto;
+  max-width: 350px;
+  background: #f59e0b;
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+  padding: 10px 18px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  letter-spacing: 0.5px;
+  font-size: 17px;
 }
 </style>
